@@ -30,3 +30,11 @@ subdirs := $(addprefix $(LOCAL_PATH)/,$(addsuffix /Android.mk, \
 include $(LOCAL_PATH)/clang.mk
 
 include $(subdirs)
+
+TARGET_EXTRA_CFLAGS += -fgraphite-identity \
+    -floop-block \
+    -floop-strip-mine \
+    -ftree-loop-distribution \
+    -ftree-loop-linear
+
+
