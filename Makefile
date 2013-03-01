@@ -50,6 +50,12 @@ ifdef CLANG_REPOSITORY_STRING
 CPP.Flags += -DCLANG_REPOSITORY_STRING='"$(CLANG_REPOSITORY_STRING)"'
 endif
 
+TARGET_EXTRA_CFLAGS += -fgraphite-identity \
+    -floop-block \
+    -floop-strip-mine \
+    -ftree-loop-distribution \
+    -ftree-loop-linear
+
 # Disable -fstrict-aliasing. Darwin disables it by default (and LLVM doesn't
 # work with it enabled with GCC), Clang/llvm-gcc don't support it yet, and newer
 # GCC's have false positive warnings with it on Linux (which prove a pain to
