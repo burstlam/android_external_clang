@@ -57,7 +57,11 @@ include $(CLEAR_TBLGEN_VARS)
 TBLGEN_TABLES := $(clang_static_analyzer_core_TBLGEN_TABLES)
 
 LOCAL_SRC_FILES := $(clang_static_analyzer_core_SRC_FILES)
+<<<<<<< HEAD
 LOCAL_CFLAGS := -fno-strict-aliasing
+=======
+LOCAL_CFLAGS := -fno-strict-aliasing $(call-cc-cpp-option,-Qunused-arguments)
+>>>>>>> linaro43
 
 LOCAL_MODULE:= libclangStaticAnalyzerCore
 
