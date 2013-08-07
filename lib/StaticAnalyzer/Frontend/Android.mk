@@ -26,11 +26,7 @@ include $(CLEAR_TBLGEN_VARS)
 TBLGEN_TABLES := $(clang_static_analyzer_frontend_TBLGEN_TABLES)
 
 LOCAL_SRC_FILES := $(clang_static_analyzer_frontend_SRC_FILES)
-<<<<<<< HEAD
-LOCAL_CFLAGS := -fno-strict-aliasing
-=======
 LOCAL_CFLAGS := -fno-strict-aliasing $(call-cc-cpp-option,-Qunused-arguments)
->>>>>>> linaro43
 
 LOCAL_C_INCLUDES := $(clang_static_analyzer_frontend_C_INCLUDES)
 
