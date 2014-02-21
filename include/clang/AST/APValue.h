@@ -20,6 +20,20 @@
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/PointerUnion.h"
 
+#define FIX_ALIASING(tIN, tOUT, x) \
+  union {\
+    tIN *indata; \
+    tOUT *outdata; \
+  };\
+  indata = (tIN*)x
+
+#define FIX_ALIASING_GET(x) \
+  FIX_ALIASING(char, x, Data)
+
+#define FIX_ALIASING_GET_RETURN(x) \
+  FIX_ALIASING_GET(x); \
+  return *outdata
+
 namespace clang {
   class AddrLabelExpr;
   class ASTContext;
@@ -200,7 +214,7 @@ public:
 
   APSInt &getInt() {
     assert(isInt() && "Invalid accessor");
-    return *(APSInt*)(char*)Data;
+    FIX_ALIASING_GET_RETURN(APSInt);
   }
   const APSInt &getInt() const {
     return const_cast<APValue*>(this)->getInt();
@@ -208,7 +222,7 @@ public:
 
   APFloat &getFloat() {
     assert(isFloat() && "Invalid accessor");
-    return *(APFloat*)(char*)Data;
+    FIX_ALIASING_GET_RETURN(APFloat);
   }
   const APFloat &getFloat() const {
     return const_cast<APValue*>(this)->getFloat();
@@ -216,7 +230,8 @@ public:
 
   APSInt &getComplexIntReal() {
     assert(isComplexInt() && "Invalid accessor");
-    return ((ComplexAPSInt*)(char*)Data)->Real;
+    FIX_ALIASING_GET(ComplexAPSInt);
+    return outdata->Real;
   }
   const APSInt &getComplexIntReal() const {
     return const_cast<APValue*>(this)->getComplexIntReal();
@@ -224,7 +239,8 @@ public:
 
   APSInt &getComplexIntImag() {
     assert(isComplexInt() && "Invalid accessor");
-    return ((ComplexAPSInt*)(char*)Data)->Imag;
+    FIX_ALIASING_GET(ComplexAPSInt);
+    return outdata->Imag;
   }
   const APSInt &getComplexIntImag() const {
     return const_cast<APValue*>(this)->getComplexIntImag();
@@ -232,7 +248,8 @@ public:
 
   APFloat &getComplexFloatReal() {
     assert(isComplexFloat() && "Invalid accessor");
-    return ((ComplexAPFloat*)(char*)Data)->Real;
+    FIX_ALIASING_GET(ComplexAPFloat);
+    return outdata->Real;
   }
   const APFloat &getComplexFloatReal() const {
     return const_cast<APValue*>(this)->getComplexFloatReal();
@@ -240,7 +257,8 @@ public:
 
   APFloat &getComplexFloatImag() {
     assert(isComplexFloat() && "Invalid accessor");
-    return ((ComplexAPFloat*)(char*)Data)->Imag;
+    FIX_ALIASING_GET(ComplexAPFloat);
+    return outdata->Imag;
   }
   const APFloat &getComplexFloatImag() const {
     return const_cast<APValue*>(this)->getComplexFloatImag();
@@ -259,20 +277,23 @@ public:
   APValue &getVectorElt(unsigned I) {
     assert(isVector() && "Invalid accessor");
     assert(I < getVectorLength() && "Index out of range");
-    return ((Vec*)(char*)Data)->Elts[I];
+    FIX_ALIASING_GET(Vec);
+    return outdata->Elts[I];
   }
   const APValue &getVectorElt(unsigned I) const {
     return const_cast<APValue*>(this)->getVectorElt(I);
   }
   unsigned getVectorLength() const {
     assert(isVector() && "Invalid accessor");
-    return ((const Vec*)(const void *)Data)->NumElts;
+    FIX_ALIASING(const void, const Vec, Data);
+    return outdata->NumElts;
   }
 
   APValue &getArrayInitializedElt(unsigned I) {
     assert(isArray() && "Invalid accessor");
     assert(I < getArrayInitializedElts() && "Index out of range");
-    return ((Arr*)(char*)Data)->Elts[I];
+    FIX_ALIASING_GET(Arr);
+    return outdata->Elts[I];
   }
   const APValue &getArrayInitializedElt(unsigned I) const {
     return const_cast<APValue*>(this)->getArrayInitializedElt(I);
@@ -283,35 +304,42 @@ public:
   APValue &getArrayFiller() {
     assert(isArray() && "Invalid accessor");
     assert(hasArrayFiller() && "No array filler");
-    return ((Arr*)(char*)Data)->Elts[getArrayInitializedElts()];
+    FIX_ALIASING_GET(Arr);
+    return outdata->Elts[getArrayInitializedElts()];
   }
   const APValue &getArrayFiller() const {
     return const_cast<APValue*>(this)->getArrayFiller();
   }
   unsigned getArrayInitializedElts() const {
     assert(isArray() && "Invalid accessor");
-    return ((const Arr*)(const void *)Data)->NumElts;
+    FIX_ALIASING(const void, const Arr, Data);
+    return outdata->NumElts;
   }
   unsigned getArraySize() const {
     assert(isArray() && "Invalid accessor");
-    return ((const Arr*)(const void *)Data)->ArrSize;
+    FIX_ALIASING(const void, const Arr, Data);
+    return outdata->ArrSize;
   }
 
   unsigned getStructNumBases() const {
     assert(isStruct() && "Invalid accessor");
-    return ((const StructData*)(const char*)Data)->NumBases;
+    FIX_ALIASING(const char, const StructData, Data);
+    return outdata->NumBases;
   }
   unsigned getStructNumFields() const {
     assert(isStruct() && "Invalid accessor");
-    return ((const StructData*)(const char*)Data)->NumFields;
+    FIX_ALIASING(const char, const StructData, Data);
+    return outdata->NumFields;
   }
   APValue &getStructBase(unsigned i) {
     assert(isStruct() && "Invalid accessor");
-    return ((StructData*)(char*)Data)->Elts[i];
+    FIX_ALIASING_GET(StructData);
+    return outdata->Elts[i];
   }
   APValue &getStructField(unsigned i) {
     assert(isStruct() && "Invalid accessor");
-    return ((StructData*)(char*)Data)->Elts[getStructNumBases() + i];
+    FIX_ALIASING_GET(StructData);
+    return outdata->Elts[getStructNumBases() + i];
   }
   const APValue &getStructBase(unsigned i) const {
     return const_cast<APValue*>(this)->getStructBase(i);
@@ -322,11 +350,13 @@ public:
 
   const FieldDecl *getUnionField() const {
     assert(isUnion() && "Invalid accessor");
-    return ((const UnionData*)(const char*)Data)->Field;
+    FIX_ALIASING(const char, const UnionData, Data);    
+    return outdata->Field;
   }
   APValue &getUnionValue() {
     assert(isUnion() && "Invalid accessor");
-    return *((UnionData*)(char*)Data)->Value;
+    FIX_ALIASING_GET(UnionData);
+    return *outdata->Value;
   }
   const APValue &getUnionValue() const {
     return const_cast<APValue*>(this)->getUnionValue();
@@ -338,41 +368,48 @@ public:
 
   const AddrLabelExpr* getAddrLabelDiffLHS() const {
     assert(isAddrLabelDiff() && "Invalid accessor");
-    return ((const AddrLabelDiffData*)(const char*)Data)->LHSExpr;
+    FIX_ALIASING(const char, const AddrLabelDiffData, Data);
+    return outdata->LHSExpr;
   }
   const AddrLabelExpr* getAddrLabelDiffRHS() const {
     assert(isAddrLabelDiff() && "Invalid accessor");
-    return ((const AddrLabelDiffData*)(const char*)Data)->RHSExpr;
+    FIX_ALIASING(const char, const AddrLabelDiffData, Data);
+    return outdata->RHSExpr;
   }
 
   void setInt(const APSInt &I) {
     assert(isInt() && "Invalid accessor");
-    *(APSInt*)(char*)Data = I;
+    FIX_ALIASING_GET(APSInt);
+    *outdata = I;
   }
   void setFloat(const APFloat &F) {
     assert(isFloat() && "Invalid accessor");
-    *(APFloat*)(char*)Data = F;
+    FIX_ALIASING_GET(APFloat);
+    *outdata = F;
   }
   void setVector(const APValue *E, unsigned N) {
     assert(isVector() && "Invalid accessor");
-    ((Vec*)(char*)Data)->Elts = new APValue[N];
-    ((Vec*)(char*)Data)->NumElts = N;
+    FIX_ALIASING_GET(Vec);
+    outdata->Elts = new APValue[N];
+    outdata->NumElts = N;
     for (unsigned i = 0; i != N; ++i)
-      ((Vec*)(char*)Data)->Elts[i] = E[i];
+      outdata->Elts[i] = E[i];
   }
   void setComplexInt(const APSInt &R, const APSInt &I) {
     assert(R.getBitWidth() == I.getBitWidth() &&
            "Invalid complex int (type mismatch).");
     assert(isComplexInt() && "Invalid accessor");
-    ((ComplexAPSInt*)(char*)Data)->Real = R;
-    ((ComplexAPSInt*)(char*)Data)->Imag = I;
+    FIX_ALIASING_GET(ComplexAPSInt);
+    outdata->Real = R;
+    outdata->Imag = I;
   }
   void setComplexFloat(const APFloat &R, const APFloat &I) {
     assert(&R.getSemantics() == &I.getSemantics() &&
            "Invalid complex float (type mismatch).");
     assert(isComplexFloat() && "Invalid accessor");
-    ((ComplexAPFloat*)(char*)Data)->Real = R;
-    ((ComplexAPFloat*)(char*)Data)->Imag = I;
+    FIX_ALIASING_GET(ComplexAPFloat);
+    outdata->Real = R;
+    outdata->Imag = I;
   }
   void setLValue(LValueBase B, const CharUnits &O, NoLValuePath,
                  unsigned CallIndex);
@@ -381,13 +418,15 @@ public:
                  unsigned CallIndex);
   void setUnion(const FieldDecl *Field, const APValue &Value) {
     assert(isUnion() && "Invalid accessor");
-    ((UnionData*)(char*)Data)->Field = Field;
-    *((UnionData*)(char*)Data)->Value = Value;
+    FIX_ALIASING_GET(UnionData);
+    outdata->Field = Field;
+    *outdata->Value = Value;
   }
   void setAddrLabelDiff(const AddrLabelExpr* LHSExpr,
                         const AddrLabelExpr* RHSExpr) {
-    ((AddrLabelDiffData*)(char*)Data)->LHSExpr = LHSExpr;
-    ((AddrLabelDiffData*)(char*)Data)->RHSExpr = RHSExpr;
+    FIX_ALIASING_GET(AddrLabelDiffData);
+    outdata->LHSExpr = LHSExpr;
+    outdata->RHSExpr = RHSExpr;
   }
 
   /// Assign by swapping from a copy of the RHS.
